@@ -29,9 +29,9 @@ async function run() {
   // await openAlarm(page);
 
   await getAllData(page);
-  // await doLogics(page, 29);
-  // await doLogics(page, 28);
-  // await doLogics(page, 20);
+  // await doStore(page, 10);
+  // await doStore(page, 28);
+  // await doStore(page, 20);
 
   await page.close();
   return process.exit(22);
@@ -48,10 +48,11 @@ async function getAllData(page) {
 
 async function doStore(page, sap_num) {
   await selectSapNum(page, sap_num);
-  await getUsers(page);
+  // await getUsers(page);
   await getNotifications(page);
-  await getSettings(page);
+  // await getSettings(page);
 }
+
 /*
 |-----------------------------------------------------------------------
 |
@@ -91,7 +92,7 @@ async function getSettings(page) {
   }
 
   console.log('getSettings -> Contacts', Contacts);
-  appendJson(G_SAP + '.Monitoring', Contacts);
+  appendJson('Monitoring', Contacts);
   spaciousMessage('SETTINGS MODULE DONE');
 
   async function getContactRows() {
@@ -195,7 +196,7 @@ async function getUsers(page) {
       }
 
       const json = { UserName, Contacts, Pin: UserPinBadge };
-      appendJson(G_SAP + '.Users.' + index, json);
+      appendJson('Users.' + index, json);
     }
   }
 
@@ -277,9 +278,13 @@ async function getNotifications(page) {
           Address: await getText(frame, r, '.contact-address'),
         });
       }
+    } else {
+      contacts.push({
+        NotificationName,
+      });
     }
 
-    appendJson(G_SAP + '.Notifications.' + index, contacts);
+    appendJson('Notifications.' + index, contacts);
   }
 
   async function openNotificationItem(frame, itemNumber) {
@@ -377,6 +382,8 @@ async function selectSapNum(page, number) {
     sap_item.click();
     return sap_item.innerText.trim();
   }, params);
+
+  G_SAP = G_SAP.replace('.', ' ').trim();
 
   console.log('selectSapNum -> selectSapNum', number);
 
@@ -517,7 +524,7 @@ function readJson() {
 function appendJson(path, value) {
   let json = readJson();
 
-  _.set(json, path, value);
+  _.set(json, [G_SAP, path].join('.'), value);
 
   // console.log(json);
 
