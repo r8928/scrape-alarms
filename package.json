@@ -1,0 +1,19 @@
+{
+	"name": "scrape-alarms",
+	"version": "1.0.0",
+	"description": "",
+	"main": "./index.js",
+	"scripts": {
+		"start": "node ./index.js"
+	},
+	"author": "r8928",
+	"license": "ISC",
+	"dependencies": {
+		"jsonfile": "^6.0.1",
+		"lodash": "^4.17.19",
+		"puppeteer": "^5.2.0"
+	},
+	"devDependencies": {
+		"@types/puppeteer": "^3.0.1"
+	}
+}
