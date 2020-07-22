@@ -41,7 +41,7 @@ async function run() {
 async function getAllData(page) {
   const sap_count = await getAllSaps(page);
 
-  for (let sap_num = 72; sap_num < sap_count; sap_num++) {
+  for (let sap_num = 0; sap_num < sap_count; sap_num++) {
     await doStore(page, sap_num);
   }
 }
