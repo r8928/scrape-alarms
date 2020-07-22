@@ -1,0 +1,29 @@
+{
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "singleQuote": true,
+  "semi": true,
+  "quoteProps": "consistent",
+  "bracketSpacing": true,
+  "arrowParens": "avoid",
+  "endOfLine": "lf",
+  "useTabs": false,
+  "htmlWhitespaceSensitivity": "ignore",
+  "overrides": [
+    {
+      "files": ["*.json", "*.module.ts", "*.interface.ts", "*.css", "*.scss"],
+      "options": {
+        "useTabs": true,
+        "singleQuote": true,
+        "tabWidth": 4
+      }
+    },
+    {
+      "files": ["*.php"],
+      "options": {
+        "useTabs": false,
+        "tabWidth": 4
+      }
+    }
+  ]
+}
