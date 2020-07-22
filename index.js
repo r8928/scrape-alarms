@@ -25,6 +25,11 @@ async function run() {
   const page = await browser.newPage();
   await page.setDefaultTimeout(120 * 1000);
 
+  await page.setViewport({
+    width: 1366,
+    height: 768,
+  });
+
   await loginAlram(page);
   // await openAlarm(page);
 
@@ -48,9 +53,9 @@ async function getAllData(page) {
 
 async function doStore(page, sap_num) {
   await selectSapNum(page, sap_num);
-  // await getUsers(page);
+  await getUsers(page);
   await getNotifications(page);
-  // await getSettings(page);
+  await getSettings(page);
 }
 
 /*
@@ -463,7 +468,7 @@ async function getBrowser() {
   // });
 
   return await puppeteer.launch({
-    headless: false,
+    // headless: false,
     defaultViewport: null,
     args: ['--start-maximized'],
   });
