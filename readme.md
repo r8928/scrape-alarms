@@ -14,6 +14,12 @@ npm install -g pnpm
 pnpm install
 ```
 
+### Run for all locations
 ```sh
 node index.js
+```
+
+### Run for sepecific location
+```sh
+node index.js 664e
 ```

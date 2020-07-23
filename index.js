@@ -257,16 +257,16 @@ async function getNotifications(page) {
   const length = await getNotificationsLength();
 
   for (let index = 0; index < length; index++) {
-    let NotificationName = await openNotificationItem(frame, index);
-    if (NotificationName) {
-      await writeNotificationContacts(NotificationName, index);
+    let Notification = await openNotificationItem(frame, index);
+    if (Notification) {
+      await writeNotificationContacts(Notification, index);
 
       await page.goBack();
     }
   }
   spaciousMessage('NOTIFICATIONS MODULE DONE');
 
-  async function writeNotificationContacts(NotificationName, index) {
+  async function writeNotificationContacts(Notification, index) {
     await frame.waitForSelector('#addRecipientBtnWrap');
     await frame.waitForSelector('.recipientsPanel');
 
@@ -278,14 +278,16 @@ async function getNotifications(page) {
     if (rows.length) {
       for (const r of rows) {
         contacts.push({
-          NotificationName,
+          NotificationName: Notification.name,
+          NotificationStatus: Notification.status,
           Name: await getText(frame, r, '.contact-name'),
           Address: await getText(frame, r, '.contact-address'),
         });
       }
     } else {
       contacts.push({
-        NotificationName,
+        NotificationName: Notification.name,
+        NotificationStatus: Notification.status,
       });
     }
 
@@ -297,38 +299,41 @@ async function getNotifications(page) {
 
     await frame.waitForSelector('.notifications-div');
 
-    const NotificationName = await frame.evaluate(itemNumber => {
+    const notification = await frame.evaluate(itemNumber => {
       const rows = document.querySelectorAll(
         '.notifications-div .notification.highlight-row',
       );
 
       const row = rows[itemNumber];
-
       const edit = row.querySelector('.edit-notification');
+      const name = row.querySelector('.name').textContent;
 
-      if (edit) {
-        const name = row.querySelector('.name').textContent;
+      const status =
+        row.querySelector('.notification-status').textContent.trim() ||
+        (row.querySelector('.notification-status .switch-on') && 'On') ||
+        (row.querySelector('.notification-status .switch-off') && 'Off') ||
+        'N/A';
+
+      if (status === 'Create') {
+        return { name, error: 'status=create' };
+      } else if (edit) {
         edit.click();
-        return name;
+        return { name, status };
       } else {
-        return null;
+        return { name, error: 'not editable' };
       }
     }, itemNumber);
 
-    if (!NotificationName) return null;
-    await frame.waitForNavigation();
-
-    console.log(
-      'writeNotificationContacts -> NotificationName',
-      NotificationName,
-    );
-
-    try {
-    } catch (error) {
-      console.error('NOTIFICATION ITEM NOT CLICKED');
+    if (_.has(notification, 'error')) {
+      errorMsg(`${notification.name} ${notification.error}`);
+      return null;
     }
 
-    return NotificationName;
+    await frame.waitForNavigation();
+
+    console.log('writeNotificationContacts -> NotificationName', notification);
+
+    return notification;
   }
 
   async function getNotificationsLength() {
@@ -441,6 +446,8 @@ async function getIframe(page, frameSrc) {
 }
 
 async function openAlarm(page) {
+  spaciousMessage('openAlarm');
+
   await page.goto('https://www.alarm.com/web/system/automation/scenes', {
     waitUntil: 'networkidle0',
   });
@@ -482,7 +489,7 @@ async function getIframe(page, frameSrc) {
 | */
 
 async function getBrowser() {
-  const debug = true;
+  const debug = false;
 
   if (debug) {
     const browser = await puppeteer.connect({
