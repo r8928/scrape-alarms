@@ -72,7 +72,7 @@ async function getSettings(page) {
   try {
     await openNavigationLink(page, '22', 5000);
   } catch (error) {
-    console.error('MONITORING NOT FOUND - PROTECTION 1?');
+    errorMsg('MONITORING NOT FOUND - PROTECTION 1?');
     return;
   }
 
@@ -104,12 +104,10 @@ async function getSettings(page) {
     await frame.waitForSelector(
       '.emergency-contact-rows>.emergency-contact-row',
     );
-    console.log();
-    console.log();
     let ContactRows = await frame.$$(
       '.emergency-contact-rows>.emergency-contact-row',
     );
-    console.log('getContactRows -> ContactRows', ContactRows.length);
+    substepMessage('getContactRows -> ContactRows ' + ContactRows.length);
     return ContactRows;
   }
 }
@@ -129,6 +127,7 @@ async function getUsers(page) {
 
   for (let index = 0; index < users.length; index++) {
     let users = await getUserRows();
+    substepMessage('getUsers -> index ' + index + '/' + users.length);
 
     await selectPage(users, index);
 
@@ -228,11 +227,9 @@ async function getUsers(page) {
   }
 
   async function getUserRows() {
-    console.log();
-    console.log();
     await page.waitForSelector('.list-row-content .access-summary-badge');
     let UserRows = await page.$$('.list-row-content .access-summary-badge');
-    console.log('getUserRows -> UserRows', UserRows.length);
+    console.log('getUserRows -> UserRows ' + UserRows.length);
     return UserRows;
   }
 }
@@ -293,9 +290,7 @@ async function getNotifications(page) {
   }
 
   async function openNotificationItem(frame, itemNumber) {
-    console.log();
-    console.log();
-    console.log('notificationsLoop -> itemNumber', itemNumber);
+    substepMessage(itemNumber);
 
     await frame.waitForSelector('.notifications-div');
 
@@ -427,7 +422,7 @@ async function openAlarm(page) {
 }
 
 async function loginAlram(page) {
-  // await page.setViewport({ width: 1366, height: 768});
+  spaciousMessage('loginAlram');
   // await screenshot(page);
 
   await page.goto('https://www.alarm.com/login.aspx', {
@@ -510,12 +505,27 @@ async function click(page, selector_name) {
   }, params);
 }
 
-function spaciousMessage(message) {
+function spaciousMessage(message, color = consoleColors.BgBlue) {
   console.log();
   console.log();
-  console.log(message);
+  console.log(color, consoleColors.Bright, message, consoleColors.Reset);
   console.log();
   console.log();
+}
+
+function substepMessage(message, color = consoleColors.BgMagenta) {
+  console.log();
+  console.log();
+  console.log(color, consoleColors.Bright, message, consoleColors.Reset);
+}
+
+function errorMsg(message) {
+  spaciousMessage(message, consoleColors.BgRed);
+}
+
+function errorDie(message) {
+  errorMsg(message);
+  process.exit(-1);
 }
 
 function readJson() {
@@ -535,6 +545,34 @@ function appendJson(path, value) {
 
   return jsonfile.writeFileSync(values.jsonFileName, json);
 }
+
+const consoleColors = {
+  Reset: '\x1b[0m',
+  Bright: '\x1b[1m',
+  Dim: '\x1b[2m',
+  Underscore: '\x1b[4m',
+  Blink: '\x1b[5m',
+  Reverse: '\x1b[7m',
+  Hidden: '\x1b[8m',
+
+  FgBlack: '\x1b[30m',
+  FgRed: '\x1b[31m',
+  FgGreen: '\x1b[32m',
+  FgYellow: '\x1b[33m',
+  FgBlue: '\x1b[34m',
+  FgMagenta: '\x1b[35m',
+  FgCyan: '\x1b[36m',
+  FgWhite: '\x1b[37m',
+
+  BgBlack: '\x1b[40m',
+  BgRed: '\x1b[41m',
+  BgGreen: '\x1b[42m',
+  BgYellow: '\x1b[43m',
+  BgBlue: '\x1b[44m',
+  BgMagenta: '\x1b[45m',
+  BgCyan: '\x1b[46m',
+  BgWhite: '\x1b[47m',
+};
 
 /*
 |-----------------------------------------------------------------------
