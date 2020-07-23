@@ -83,19 +83,20 @@ async function getSettings(page) {
   const Contacts = [];
   if (ContactRows && ContactRows.length) {
     for (const row of ContactRows) {
-      Contacts.push({
+      const data = {
         FirstName: await getText(frame, row, '#txtFirstName', 'value'),
         LastName: await getText(frame, row, '#txtLastName', 'value'),
         PinCode: await getText(frame, row, '#txtPinCode', 'value'),
         Contact: await getText(frame, row, '.phone-number'),
         Order: await getText(frame, row, '[name="ddlOrder"]', 'value'),
-      });
+      };
+      Contacts.push(data);
+      console.log('getSettings -> FirstName', data.FirstName);
     }
   }
 
-  console.log('getSettings -> Contacts', Contacts);
   appendJson('Monitoring', Contacts);
-  spaciousMessage('SETTINGS MODULE DONE');
+  stepMessage('SETTINGS MODULE DONE');
 
   async function getContactRows() {
     try {
@@ -130,7 +131,7 @@ async function getUsers(page) {
 
   for (let index = 0; index < users.length; index++) {
     let users = await getUserRows();
-    substepMessage('getUsers -> index ' + index + '/' + users.length);
+    substepMessage('getUsers ' + (index + 1) + '/' + users.length);
 
     await selectPage(users, index);
 
@@ -140,7 +141,7 @@ async function getUsers(page) {
 
     await page.goBack();
   }
-  spaciousMessage('USERS MODULE DONE');
+  stepMessage('USERS MODULE DONE');
 
   async function userDetailsExists() {
     return (await page.$('.user-information .display-name')) !== null;
@@ -232,7 +233,6 @@ async function getUsers(page) {
   async function getUserRows() {
     await page.waitForSelector('.list-row-content .access-summary-badge');
     let UserRows = await page.$$('.list-row-content .access-summary-badge');
-    console.log('getUserRows -> UserRows ' + UserRows.length);
     return UserRows;
   }
 }
@@ -257,6 +257,8 @@ async function getNotifications(page) {
   const length = await getNotificationsLength();
 
   for (let index = 0; index < length; index++) {
+    substepMessage('openNotificationItem ' + (index + 1) + '/' + length);
+
     let Notification = await openNotificationItem(frame, index);
     if (Notification) {
       await writeNotificationContacts(Notification, index);
@@ -264,7 +266,7 @@ async function getNotifications(page) {
       await page.goBack();
     }
   }
-  spaciousMessage('NOTIFICATIONS MODULE DONE');
+  stepMessage('NOTIFICATIONS MODULE DONE');
 
   async function writeNotificationContacts(Notification, index) {
     await frame.waitForSelector('#addRecipientBtnWrap');
@@ -295,8 +297,6 @@ async function getNotifications(page) {
   }
 
   async function openNotificationItem(frame, itemNumber) {
-    substepMessage(itemNumber);
-
     await frame.waitForSelector('.notifications-div');
 
     const notification = await frame.evaluate(itemNumber => {
@@ -417,7 +417,7 @@ async function selectSap({ page, sap_index, sap_name }) {
     : await getSapByIndex({ page, sap_index });
 
   G_SAP = sap.trim().replace('.', ' ').trim();
-  spaciousMessage(G_SAP);
+  stepMessage(G_SAP);
   await page.waitForNavigation();
 }
 
@@ -446,7 +446,7 @@ async function getIframe(page, frameSrc) {
 }
 
 async function openAlarm(page) {
-  spaciousMessage('openAlarm');
+  stepMessage('openAlarm');
 
   await page.goto('https://www.alarm.com/web/system/automation/scenes', {
     waitUntil: 'networkidle0',
@@ -454,7 +454,7 @@ async function openAlarm(page) {
 }
 
 async function loginAlram(page) {
-  spaciousMessage('loginAlram');
+  stepMessage('loginAlram');
   // await screenshot(page);
 
   await page.goto('https://www.alarm.com/login.aspx', {
@@ -558,7 +558,7 @@ async function click(page, selector_name) {
   }, params);
 }
 
-function spaciousMessage(message, color = consoleColors.BgBlue) {
+function stepMessage(message, color = consoleColors.BgBlue) {
   console.log();
   console.log();
   console.log(color, consoleColors.Bright, message, consoleColors.Reset);
@@ -573,7 +573,7 @@ function substepMessage(message, color = consoleColors.BgMagenta) {
 }
 
 function errorMsg(message) {
-  spaciousMessage(message, consoleColors.BgRed);
+  stepMessage(message, consoleColors.BgRed);
 }
 
 function errorDie(message) {
