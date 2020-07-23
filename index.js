@@ -20,18 +20,10 @@ const selectors = {
 };
 
 async function run() {
-  const browser = await getBrowser();
+  const { browser, page } = await getBrowser();
 
-  const page = await browser.newPage();
-  await page.setDefaultTimeout(120 * 1000);
 
-  await page.setViewport({
-    width: 1366,
-    height: 768,
-  });
 
-  await loginAlram(page);
-  // await openAlarm(page);
 
   await getAllData(page);
   // await doStore(page, 10);
@@ -457,16 +449,37 @@ async function getIframe(page, frameSrc) {
 | */
 
 async function getBrowser() {
-  // return await puppeteer.connect({
-  //   'http://127.0.0.1:21222',
-  //   defaultViewport: null,
-  // });
+  const debug = true;
 
-  return await puppeteer.launch({
-    // headless: false,
-    defaultViewport: null,
-    args: ['--start-maximized'],
-  });
+  if (debug) {
+    const browser = await puppeteer.connect({
+      browserURL: 'http://127.0.0.1:21222',
+      defaultViewport: null,
+    });
+
+    const page = await browser.newPage();
+
+    await openAlarm(page);
+
+    return { browser, page };
+  } else {
+    const browser = await puppeteer.launch({
+      // headless: false,
+      defaultViewport: null,
+      args: ['--start-maximized'],
+    });
+
+    const page = await browser.newPage();
+    await page.setDefaultTimeout(120 * 1000);
+    await page.setViewport({
+      width: 1366,
+      height: 768,
+    });
+
+    await loginAlram(page);
+
+    return { browser, page };
+  }
 }
 
 async function screenshot(page) {
