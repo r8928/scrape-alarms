@@ -81,7 +81,7 @@ async function getSettings(page) {
   let ContactRows = await getContactRows();
 
   const Contacts = [];
-  if (ContactRows.length) {
+  if (ContactRows && ContactRows.length) {
     for (const row of ContactRows) {
       Contacts.push({
         FirstName: await getText(frame, row, '#txtFirstName', 'value'),
@@ -98,14 +98,20 @@ async function getSettings(page) {
   spaciousMessage('SETTINGS MODULE DONE');
 
   async function getContactRows() {
-    await frame.waitForSelector(
-      '.emergency-contact-rows>.emergency-contact-row',
-    );
-    let ContactRows = await frame.$$(
-      '.emergency-contact-rows>.emergency-contact-row',
-    );
-    substepMessage('getContactRows -> ContactRows ' + ContactRows.length);
-    return ContactRows;
+    try {
+      await frame.waitForSelector(
+        '.emergency-contact-rows>.emergency-contact-row',
+        { timeout: 10000 },
+      );
+      let ContactRows = await frame.$$(
+        '.emergency-contact-rows>.emergency-contact-row',
+      );
+      substepMessage('getContactRows -> ContactRows ' + ContactRows.length);
+      return ContactRows;
+    } catch (error) {
+      errorMsg('No users found in Settings->Monitoring --- Brinks???');
+      return null;
+    }
   }
 }
 
