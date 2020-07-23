@@ -20,31 +20,36 @@ const selectors = {
 };
 
 async function run() {
+  if (![2, 3].includes(process.argv.length)) {
+    return errorDie('INVALID NUMBER OF ARGUMENTS');
+  }
+
   const { browser, page } = await getBrowser();
 
-
-
-
-  await getAllData(page);
-  // await doStore(page, 10);
-  // await doStore(page, 28);
-  // await doStore(page, 20);
+  if (process.argv.length === 2) {
+    await doAllSaps(page);
+    // await doStore({page, sap_index: 10});
+    // await doStore({page, sap_index: 28});
+    // await doStore({page, sap_index: 20});
+  } else if (process.argv.length === 3) {
+    await doStore({ page, sap_name: process.argv.pop(2) });
+  }
 
   await page.close();
-  return process.exit(22);
   // await browser.close();
+  return process.exit(22);
 }
 
-async function getAllData(page) {
+async function doAllSaps(page) {
   const sap_count = await getAllSaps(page);
 
-  for (let sap_num = 0; sap_num < sap_count; sap_num++) {
-    await doStore(page, sap_num);
+  for (let sap_index = 0; sap_index < sap_count; sap_index++) {
+    await doStore({ page, sap_index });
   }
 }
 
-async function doStore(page, sap_num) {
-  await selectSapNum(page, sap_num);
+async function doStore({ page, sap_index, sap_name }) {
+  await selectSap({ page, sap_index, sap_name });
   await getUsers(page);
   await getNotifications(page);
   await getSettings(page);
@@ -361,29 +366,51 @@ async function getAllSaps(page) {
   return sap_count;
 }
 
-async function selectSapNum(page, number) {
-  spaciousMessage(['selectSapNum', number]);
+async function getSapByName({ page, sap_name }) {
+  const all_saps = await page.$$(selectors.dropdown_saps_list);
+
+  for (row of all_saps) {
+    const text = await page.evaluate(el => el.textContent, row);
+
+    if (String(text).toLowerCase().includes(String(sap_name).toLowerCase())) {
+      row.click();
+      return text;
+    }
+  }
+
+  errorDie('NO SUCH SAP FOUND');
+}
+
+async function getSapByIndex({ page, sap_index }) {
+  // SELECT AND GET SAP
+  const params = { sap_index };
+  params['selector'] = selectors.dropdown_saps_list;
+
+  return await page.evaluate(p => {
+    const sap_item = document.querySelectorAll(p.selector)[p.sap_index];
+    sap_item.click();
+    return sap_item.innerText;
+  }, params);
+}
+
+async function selectSap({ page, sap_index, sap_name }) {
+  console.log('selectSap ', { sap_index, sap_name });
+
+  if (!sap_index && sap_index !== 0 && !sap_name)
+    errorDie('INVALID ARGUMENTS IN selectSapNum');
 
   await openSapDropdown(page);
 
-  // SELECT AND GET SAP
-  const params = { number };
-  params['selector'] = selectors.dropdown_saps_list;
-  G_SAP = await page.evaluate(p => {
-    const sap_item = document.querySelectorAll(p.selector)[p.number];
-    sap_item.click();
-    return sap_item.innerText.trim();
-  }, params);
+  const sap = sap_name
+    ? await getSapByName({ page, sap_name })
+    : await getSapByIndex({ page, sap_index });
 
-  G_SAP = G_SAP.replace('.', ' ').trim();
-
-  console.log('selectSapNum -> selectSapNum', number);
-
+  G_SAP = sap.trim().replace('.', ' ').trim();
+  spaciousMessage(G_SAP);
   await page.waitForNavigation();
 }
 
 async function openSapDropdown(page) {
-  console.log('openSapDropdown -> openSapDropdown');
   // OPEN DROPDOWN
   await click(page, selectors.sap_dropdown);
 
