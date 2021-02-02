@@ -64,7 +64,7 @@ async function doStore({ page, sap_index, sap_name }) {
 | */
 
 async function getSettings(page) {
-  await openNavigationLink(page, '1145');
+  await openNavigationLink(page, '1147');
 
   try {
     await openNavigationLink(page, '22', 5000);
@@ -504,7 +504,7 @@ async function getBrowser() {
     return { browser, page };
   } else {
     const browser = await puppeteer.launch({
-      // headless: false,
+      headless: false,
       defaultViewport: null,
       args: ['--start-maximized'],
     });
