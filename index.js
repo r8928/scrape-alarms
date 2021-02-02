@@ -504,7 +504,7 @@ async function getBrowser() {
     return { browser, page };
   } else {
     const browser = await puppeteer.launch({
-      headless: false,
+      // headless: false,
       defaultViewport: null,
       args: ['--start-maximized'],
     });
