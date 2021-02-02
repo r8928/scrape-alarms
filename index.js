@@ -64,7 +64,7 @@ async function doStore({ page, sap_index, sap_name }) {
 | */
 
 async function getSettings(page) {
-  await openNavigationLink(page, '1131');
+  await openNavigationLink(page, '1145');
 
   try {
     await openNavigationLink(page, '22', 5000);
