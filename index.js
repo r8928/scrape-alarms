@@ -19,6 +19,12 @@ const selectors = {
   dropdown_saps_list: '.popper-container .content ul li a',
 };
 
+const navigationIds = {
+  Settings: 1155,
+  Settings_Monitoring: 22,
+  Users: 'users',
+};
+
 async function run() {
   if (![2, 3].includes(process.argv.length)) {
     return errorDie('INVALID NUMBER OF ARGUMENTS');
@@ -64,10 +70,10 @@ async function doStore({ page, sap_index, sap_name }) {
 | */
 
 async function getSettings(page) {
-  await openNavigationLink(page, '1147');
+  await openNavigationLink(page, navigationIds.Settings);
 
   try {
-    await openNavigationLink(page, '22', 5000);
+    await openNavigationLink(page, navigationIds.Settings_Monitoring, 5000);
   } catch (error) {
     errorMsg('MONITORING NOT FOUND - PROTECTION 1?');
     return;
@@ -125,7 +131,7 @@ async function getSettings(page) {
 | */
 
 async function getUsers(page) {
-  await openNavigationLink(page, 'users');
+  await openNavigationLink(page, navigationIds.Users);
 
   let users = await getUserRows();
 
@@ -432,7 +438,11 @@ async function openSapDropdown(page) {
 async function openNavigationLink(page, module, timeout = 120000) {
   console.log('openNavigationLink -> openNavigationLink', module);
 
+  try {
   await page.waitForSelector('[route-id="' + module + '"] a', { timeout });
+  } catch (error) {
+    errorDie('Cannot find navigation id: ' + module);
+  }
 
   const a = await page.$('[route-id="' + module + '"] a');
   a.click();
