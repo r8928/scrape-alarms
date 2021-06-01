@@ -31,7 +31,7 @@ async function run() {
     return errorDie('INVALID NUMBER OF ARGUMENTS');
   }
 
-  const { browser, page } = await getBrowser();
+  const { page } = await getBrowser();
 
   if (process.argv.length === 2) {
     await doAllSaps(page);
@@ -44,7 +44,7 @@ async function run() {
 
   await page.close();
   // await browser.close();
-  return process.exit(22);
+  return process.exit();
 }
 
 async function doAllSaps(page) {

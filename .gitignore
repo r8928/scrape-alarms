@@ -4,3 +4,4 @@ node_modules
 20*.json
 example.png
 nohup.out
+package-lock.json
