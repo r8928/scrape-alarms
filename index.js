@@ -2,13 +2,14 @@
 const puppeteer = require('puppeteer');
 const jsonfile = require('jsonfile');
 const _ = require('lodash');
+const { env } = require('./env');
 
 var G_SAP;
 
 const values = {
-  username: '',
-  password: '',
-  jsonFileName: new Date().toLocaleDateString('fr-CA').concat('.json'),
+  username: env.username,
+  password: env.password,
+  jsonFileName: new Date().toISOString().split('T')[0].concat('.json'),
 };
 
 const selectors = {
@@ -439,7 +440,7 @@ async function openNavigationLink(page, module, timeout = 120000) {
   console.log('openNavigationLink -> openNavigationLink', module);
 
   try {
-  await page.waitForSelector('[route-id="' + module + '"] a', { timeout });
+    await page.waitForSelector('[route-id="' + module + '"] a', { timeout });
   } catch (error) {
     errorDie('Cannot find navigation id: ' + module);
   }
