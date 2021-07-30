@@ -5,3 +5,4 @@ node_modules
 example.png
 nohup.out
 package-lock.json
+env.js
