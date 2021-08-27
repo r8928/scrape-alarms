@@ -2,28 +2,32 @@ const puppeteer = require('puppeteer');
 const _ = require('lodash');
 const { env } = require('./env');
 const { appendJson } = require('./jsonfile');
-const { stepMessage, substepMessage, errorMsg, errorDie } = require('./msgs');
-const { getBrowser } = require('./ppt');
+const { msg } = require('./msgs');
+const { getBrowser, getIframe, screenshot, setValue, type, getText, click, goto, } = require('./ppt'); // prettier-ignore
 
 const selectors = {
   username: '[id="ctl00_ContentPlaceHolder1_loginform_txtUserName"]',
   password: '[name="txtPassword"]',
   loginSubmit: '[name="ctl00$ContentPlaceHolder1$loginform$signInButton"]',
   twoFactorConfirm: '.two-factor-intro',
-  twoFactorSkip: '.action-buttons button[aria-live="polite"]',
+  twoFactorSkip: 'button[type="cancel"]',
   sap_dropdown: '.system-select .dropdown-toggle',
   dropdown_saps_list: '.popper-container .content ul li a',
 };
 
 const navigationIds = {
   Settings: 1169,
-  Settings_Monitoring: 22,
+  Settings_MonitoringStation: 22,
   Users: 'users',
+  SettingsURL: 'https://www.alarm.com/web/system/settings',
+  Settings_MonitoringStationURL:
+    'https://www.alarm.com/web/Profile/MonitoringStation/MonitoringStation.aspx',
+  UsersURL: 'https://www.alarm.com/web/system/users',
 };
 
 async function run() {
   if (![2, 3].includes(process.argv.length)) {
-    return errorDie('INVALID NUMBER OF ARGUMENTS');
+    return die.say('INVALID NUMBER OF ARGUMENTS');
   }
   const debug = false;
 
@@ -41,8 +45,10 @@ async function run() {
     // await doStore({page, sap_index: 28});
     // await doStore({page, sap_index: 20});
   } else if (process.argv.length === 3) {
-    await doStore({ page, sap_name: process.argv.pop(2) });
+    await doStore({ page, sap_name: process.argv.pop(2), sap_count: 1 });
   }
+
+  msg.step('ALL DONE!!!');
 
   await page.close();
   // await browser.close();
@@ -54,12 +60,15 @@ async function doAllSaps(page) {
   const sap_count = await getAllSaps(page);
 
   for (let sap_index = 0; sap_index < sap_count; sap_index++) {
-    await doStore({ page, sap_index });
+    await doStore({ page, sap_index, sap_count });
   }
 }
 
-async function doStore({ page, sap_index, sap_name }) {
+async function doStore({ page, sap_index, sap_name, sap_count }) {
   await selectSap({ page, sap_index, sap_name });
+
+  msg.step(env.G_SAP + ': ' + Number(sap_index) + 1 + '/' + sap_count);
+
   await getUsers(page);
   await getNotifications(page);
   await getSettings(page);
@@ -75,12 +84,17 @@ async function doStore({ page, sap_index, sap_name }) {
 
 /** @param {puppeteer.Page} page */
 async function getSettings(page) {
+  msg.step('SETTINGS MODULE');
+
   await openNavigationLink(page, navigationIds.Settings);
+  // await goto(page, navigationIds.SettingsURL);
 
   try {
-    await openNavigationLink(page, navigationIds.Settings_Monitoring, 5000);
+    await openNavigationLink(page, navigationIds.Settings_MonitoringStation);
+    // await goto(page, navigationIds.Settings_MonitoringStationURL);
   } catch (error) {
-    errorMsg('MONITORING NOT FOUND - PROTECTION 1?');
+    screenshot(page);
+    msg.error('MONITORING STATION NOT FOUND - PROTECTION 1?');
     return;
   }
 
@@ -102,12 +116,11 @@ async function getSettings(page) {
         Order: await getText(frame, row, '[name="ddlOrder"]', 'value'),
       };
       Contacts.push(data);
-      console.log('getSettings -> FirstName', data.FirstName);
+      msg.info('getSettings -> FirstName', data.FirstName);
     }
   }
 
   appendJson('Monitoring', Contacts);
-  stepMessage('SETTINGS MODULE DONE');
 
   async function getContactRows() {
     try {
@@ -118,10 +131,10 @@ async function getSettings(page) {
       let ContactRows = await frame.$$(
         '.emergency-contact-rows>.emergency-contact-row',
       );
-      substepMessage('getContactRows -> ContactRows ' + ContactRows.length);
+      msg.substep('getContactRows -> ContactRows ' + ContactRows.length);
       return ContactRows;
     } catch (error) {
-      errorMsg('No users found in Settings->Monitoring --- Brinks???');
+      msg.error('No users found in Settings->Monitoring --- Brinks???');
       return null;
     }
   }
@@ -137,13 +150,16 @@ async function getSettings(page) {
 
 /** @param {puppeteer.Page} page */
 async function getUsers(page) {
-  await openNavigationLink(page, navigationIds.Users);
+  msg.step('USERS MODULE');
 
-  let users = await getUserRows();
+  await openNavigationLink(page, navigationIds.Users);
+  // await goto(page, navigationIds.UsersURL);
+
+  let users = await getUserRows(page);
 
   for (let index = 0; index < users.length; index++) {
-    let users = await getUserRows();
-    substepMessage('getUsers ' + (index + 1) + '/' + users.length);
+    let users = await getUserRows(page);
+    msg.substep('getUsers ' + (index + 1) + '/' + users.length);
 
     await selectPage(users, index);
 
@@ -153,7 +169,6 @@ async function getUsers(page) {
 
     await page.goBack();
   }
-  stepMessage('USERS MODULE DONE');
 
   async function userDetailsExists() {
     return (await page.$('.user-information .display-name')) !== null;
@@ -183,7 +198,6 @@ async function getUsers(page) {
 
           return ad;
         });
-        console.log('saveThisPage -> address', Contacts);
 
         // for (let index = 0; index < contactRows.length; index++) {
         //   const element = contactRows[index];
@@ -222,28 +236,31 @@ async function getUsers(page) {
 
   async function countContactRows() {
     let ContactRows = await page.$$('.contact-address');
-    console.log('countContactRows -> ContactRows', ContactRows.length);
 
     return ContactRows;
   }
 
   async function getUserInfo() {
     const UserName = await getText(page, page, '.display-name');
-    console.log('getUsers -> UserName', UserName);
+    msg.info('getUsers -> UserName', UserName);
 
     let UserPinBadge = '';
     const UserPinBadgeSelector = await page.$('.user-pin-badge span');
     if (UserPinBadgeSelector) {
       UserPinBadge = await getText(page, page, '.user-pin-badge span');
-      console.log('getUsers -> UserPinBadge', UserPinBadge);
+      msg.info('getUsers -> UserPinBadge', UserPinBadge);
     } else {
       console.error('no UserPinBadge');
     }
     return { UserName, UserPinBadge };
   }
 
-  async function getUserRows() {
-    await page.waitForSelector('.list-row-content .access-summary-badge');
+  async function getUserRows(page) {
+    try {
+      await page.waitForSelector('.list-row-content .access-summary-badge');
+    } catch (error) {
+      msg.die('Cannot get userRow', await page.url());
+    }
     let UserRows = await page.$$('.list-row-content .access-summary-badge');
     return UserRows;
   }
@@ -259,7 +276,9 @@ async function getUsers(page) {
 
 /** @param {puppeteer.Page} page */
 async function getNotifications(page) {
-  await openNotificationsPage();
+  msg.step('NOTIFICATIONS MODULE');
+
+  await openNotificationsPage(page);
 
   const frame = await getNotificationsFrame();
 
@@ -270,7 +289,7 @@ async function getNotifications(page) {
   const length = await getNotificationsLength();
 
   for (let index = 0; index < length; index++) {
-    substepMessage('openNotificationItem ' + (index + 1) + '/' + length);
+    msg.substep('openNotificationItem ' + (index + 1) + '/' + length);
 
     let Notification = await openNotificationItem(frame, index);
     if (Notification) {
@@ -279,14 +298,13 @@ async function getNotifications(page) {
       await page.goBack();
     }
   }
-  stepMessage('NOTIFICATIONS MODULE DONE');
 
   async function writeNotificationContacts(Notification, index) {
     await frame.waitForSelector('#addRecipientBtnWrap');
     await frame.waitForSelector('.recipientsPanel');
 
     let rows = await frame.$$('.recipientsPanel .contact.highlight-row');
-    console.log('writeNotificationContacts -> length', rows.length);
+    msg.info('writeNotificationContacts -> length', rows.length);
 
     const contacts = [];
 
@@ -338,14 +356,13 @@ async function getNotifications(page) {
     }, itemNumber);
 
     if (_.has(notification, 'error')) {
-      errorMsg(`${notification.name} ${notification.error}`);
+      msg.error(`${notification.name} ${notification.error}`);
       return null;
     }
 
     await frame.waitForNavigation();
 
-    console.log('writeNotificationContacts -> NotificationName', notification);
-
+    msg.info('writeNotificationContacts -> NotificationName', notification);
     return notification;
   }
 
@@ -360,15 +377,12 @@ async function getNotifications(page) {
     return await getIframe(page, frameSrc);
   }
 
-  async function openNotificationsPage() {
+  async function openNotificationsPage(page) {
     // WE NEED NETWORK IDLE 0 BECAUSE OF IFRAME
 
-    console.log('openNotificationsPage -> openNotificationsPage');
-    await page.goto(
+    await goto(
+      page,
       'https://www.alarm.com/web/Notifications/NotificationsNew.aspx',
-      {
-        waitUntil: 'networkidle0',
-      },
     );
   }
 }
@@ -387,42 +401,12 @@ async function getAllSaps(page) {
 
   const all_saps = await page.$$(selectors.dropdown_saps_list);
   const sap_count = all_saps.length;
-  console.log('selectSapNum -> sap_count', sap_count);
   return sap_count;
 }
 
-async function getSapByName({ page, sap_name }) {
-  const all_saps = await page.$$(selectors.dropdown_saps_list);
-
-  for (row of all_saps) {
-    const text = await page.evaluate(el => el.textContent, row);
-
-    if (String(text).toLowerCase().includes(String(sap_name).toLowerCase())) {
-      row.click();
-      return text;
-    }
-  }
-
-  errorDie('NO SUCH SAP FOUND');
-}
-
-async function getSapByIndex({ page, sap_index }) {
-  // SELECT AND GET SAP
-  const params = { sap_index };
-  params['selector'] = selectors.dropdown_saps_list;
-
-  return await page.evaluate(p => {
-    const sap_item = document.querySelectorAll(p.selector)[p.sap_index];
-    sap_item.click();
-    return sap_item.innerText;
-  }, params);
-}
-
 async function selectSap({ page, sap_index, sap_name }) {
-  console.log('selectSap ', { sap_index, sap_name });
-
   if (!sap_index && sap_index !== 0 && !sap_name)
-    errorDie('INVALID ARGUMENTS IN selectSapNum');
+    msg.die('INVALID ARGUMENTS IN selectSapNum');
 
   await openSapDropdown(page);
 
@@ -431,8 +415,34 @@ async function selectSap({ page, sap_index, sap_name }) {
     : await getSapByIndex({ page, sap_index });
 
   env.G_SAP = sap.trim().replace('.', ' ').trim();
-  stepMessage(env.G_SAP);
   await page.waitForNavigation();
+
+  async function getSapByName({ page, sap_name }) {
+    const all_saps = await page.$$(selectors.dropdown_saps_list);
+
+    for (row of all_saps) {
+      const text = await page.evaluate(el => el.textContent, row);
+
+      if (String(text).toLowerCase().includes(String(sap_name).toLowerCase())) {
+        row.click();
+        return text;
+      }
+    }
+
+    msg.die('NO SUCH SAP FOUND');
+  }
+
+  async function getSapByIndex({ page, sap_index }) {
+    // SELECT AND GET SAP
+    const params = { sap_index };
+    params['selector'] = selectors.dropdown_saps_list;
+
+    return await page.evaluate(p => {
+      const sap_item = document.querySelectorAll(p.selector)[p.sap_index];
+      sap_item.click();
+      return sap_item.innerText;
+    }, params);
+  }
 }
 
 /** @param {puppeteer.Page} page */
@@ -445,140 +455,101 @@ async function openSapDropdown(page) {
 }
 
 /** @param {puppeteer.Page} page */
-async function openNavigationLink(page, module, timeout = 120000) {
-  console.log('openNavigationLink -> openNavigationLink', module);
+async function openNavigationLink(page, module, timeout = 60000) {
+  msg.substep('openNavigationLink', module);
 
   try {
-    await page.waitForSelector('[route-id="' + module + '"] a', { timeout });
+    const selector = navigationLinkSelector(module);
+    await page.waitForSelector(selector);
+    await page.click(selector);
   } catch (error) {
-    errorDie('Cannot find navigation id: ' + module);
+    screenshot(page);
+    msg.die('Cannot openNavigationLink ', module);
   }
-
-  const a = await page.$('[route-id="' + module + '"] a');
-  a.click();
-  await page.waitForNavigation({ waitUntil: 'networkidle0', timeout });
 }
 
-/** @param {puppeteer.Page} page */
-async function getIframe(page, frameSrc) {
-  const elementHandle = await page.$('[src="' + frameSrc + '"]');
-  const frame = await elementHandle.contentFrame();
-  return frame;
+function navigationLinkSelector(module) {
+  return `[route-id="${module}"] a`;
 }
 
 /** @param {puppeteer.Page} page */
 async function openAlarm(page) {
-  stepMessage('openAlarm');
+  msg.step('openAlarm');
 
   // await loginAlram(page);
-  await handle2FA();
-
-  await page.goto('https://www.alarm.com/web/system/automation/scenes', {
-    waitUntil: 'networkidle0',
-  });
+  await handle2FA(page);
 }
 
 /** @param {puppeteer.Page} page */
 async function loginAlram(page) {
-  stepMessage('loginAlram');
+  msg.step('loginAlram');
   // await screenshot(page);
 
-  await page.goto('https://www.alarm.com/login.aspx', {
-    waitUntil: 'domcontentloaded',
-  });
+  await goto(page, 'https://www.alarm.com/login.aspx');
 
   await page.waitForSelector(selectors.loginSubmit);
   await setValue(page, selectors.username, env.username);
   await setValue(page, selectors.password, env.password);
   await click(page, selectors.loginSubmit);
-  await page.waitForNavigation({ waitUntil: 'networkidle2' });
   await handle2FA(page);
 }
 
 /** @param {puppeteer.Page} page */
 async function handle2FA(page) {
   try {
-    await page.waitForSelector(selectors.twoFactorConfirm);
-    stepMessage(`handle2FA`);
+    await page.waitForNavigation({
+      waitUntil: 'networkidle0',
+      timeout: 10 * 1000,
+    });
   } catch (error) {
-    console.log(`🚀 > NOOOOO 2FA`);
-    return;
+    console.log(`🚀 > networkidle0`);
+  }
+
+  try {
+    await page.waitForSelector(selectors.twoFactorSkip);
+    msg.substep(`handle2FA`);
+  } catch (error) {
+    msg.info(`🚀 > NOOOOO 2FA`, await page.url());
+    // await writeHtmlAndDie(page);
+
+    return openHome(page);
   }
 
   try {
     await click(page, selectors.twoFactorSkip);
-    await page.waitForNavigation({ waitUntil: 'networkidle0' });
   } catch (error) {
-    errorDie(`🚀 > COULD NOT THWART 2FA: LAYOUT CHANGED???`);
+    console.log(`🚀 > error`, typeof error, error);
+    msg.die(`🚀 > COULD NOT THWART 2FA: LAYOUT CHANGED???`, await page.url());
+  }
+
+  await openHome(page);
+}
+
+async function openHome(page) {
+  try {
+    await page.waitForSelector(selectors.sap_dropdown);
+  } catch (error) {
+    await goto(page, 'https://www.alarm.com/web/system/home');
   }
 
   try {
     await page.waitForSelector(selectors.sap_dropdown);
   } catch (error) {
-    await page.goto('https://www.alarm.com/web/system/home', {
-      waitUntil: 'networkidle0',
-    });
-  }
-
-  try {
-    await page.waitForSelector(selectors.sap_dropdown);
-  } catch (error) {
-    errorDie(`🚀 > COULD NOT THWART 2FA: NOT LOGGED IN`);
+    msg.die(`🚀 > COULD NOT THWART 2FA: NOT LOGGED IN`, await page.url());
   }
 }
 
-/** @param {puppeteer.Page} page */
-async function getIframe(page, frameSrc) {
-  const elementHandle = await page.$('[src="' + frameSrc + '"]');
-  const frame = await elementHandle.contentFrame();
-  return frame;
-}
+async function writeHtmlAndDie(page) {
+  screenshot(page);
 
-/** @param {puppeteer.Page} page */
-async function screenshot(page) {
-  await page.screenshot({ path: 'example.png' });
-}
-
-/** @param {puppeteer.Page} page */
-async function setValue(page, selector_name, value_name) {
-  await page.waitForSelector(selector_name);
-
-  const params = { selector_name, value_name };
-
-  await page.evaluate(p => {
-    document.querySelector(p.selector_name).value = p.value_name;
-  }, params);
-}
-
-/** @param {puppeteer.Page} page */
-async function type(page, selector_name, value_name) {
-  await page.waitForSelector(selector_name);
-
-  await page.focus(selector_name);
-  await click(page, selector_name);
-  await page.keyboard.type(value_name, { delay: 1 });
-  // await page.type(selector_name, value_name, { delay: 1 });
-}
-
-/** @param {puppeteer.Page} page */
-async function getText(page, parentEl, selector, attr = 'innerText') {
-  await page.waitForSelector(selector);
-
-  let element = await parentEl.$(selector);
-  const text = await page.evaluate(
-    (element, attr) => element[attr],
-    element,
-    attr,
+  const html = await page.evaluate(
+    'new XMLSerializer().serializeToString(document.doctype) + document.documentElement.outerHTML',
   );
-  return text.trim();
-}
+  console.log(html.replace(/\s+/gm, ' '));
 
-/** @param {puppeteer.Page} page */
-async function click(page, selector_name) {
-  await page.waitForSelector(selector_name);
-
-  const a = await page.$(selector_name);
-  a.click();
+  const fs = require('fs');
+  fs.writeFileSync('html', html);
+  process.exit();
 }
 
 /*
