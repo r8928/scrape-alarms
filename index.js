@@ -67,7 +67,7 @@ async function doAllSaps(page) {
 async function doStore({ page, sap_index, sap_name, sap_count }) {
   await selectSap({ page, sap_index, sap_name });
 
-  msg.step(env.G_SAP + ': ' + Number(sap_index) + 1 + '/' + sap_count);
+  msg.step(env.G_SAP + ': ' + (Number(sap_index) + 1) + '/' + sap_count);
 
   await getUsers(page);
   await getNotifications(page);
@@ -156,10 +156,11 @@ async function getUsers(page) {
   // await goto(page, navigationIds.UsersURL);
 
   let users = await getUserRows(page);
+  msg.substep('getUserRows ' + users.length);
 
   for (let index = 0; index < users.length; index++) {
     let users = await getUserRows(page);
-    msg.substep('getUsers ' + (index + 1) + '/' + users.length);
+    // msg.substep('getUsers ' + (index + 1) + '/' + users.length);
 
     await selectPage(users, index);
 
@@ -248,9 +249,8 @@ async function getUsers(page) {
     const UserPinBadgeSelector = await page.$('.user-pin-badge span');
     if (UserPinBadgeSelector) {
       UserPinBadge = await getText(page, page, '.user-pin-badge span');
-      msg.info('getUsers -> UserPinBadge', UserPinBadge);
     } else {
-      console.error('no UserPinBadge');
+      msg.error('no UserPinBadge');
     }
     return { UserName, UserPinBadge };
   }
@@ -287,9 +287,10 @@ async function getNotifications(page) {
   }
 
   const length = await getNotificationsLength();
+  msg.substep('getNotificationsLength', length);
 
   for (let index = 0; index < length; index++) {
-    msg.substep('openNotificationItem ' + (index + 1) + '/' + length);
+    // msg.substep('openNotificationItem ' + (index + 1) + '/' + length);
 
     let Notification = await openNotificationItem(frame, index);
     if (Notification) {
@@ -304,7 +305,6 @@ async function getNotifications(page) {
     await frame.waitForSelector('.recipientsPanel');
 
     let rows = await frame.$$('.recipientsPanel .contact.highlight-row');
-    msg.info('writeNotificationContacts -> length', rows.length);
 
     const contacts = [];
 

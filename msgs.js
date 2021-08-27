@@ -32,14 +32,19 @@ class msg {
     this.done();
   }
 
-  static error() {
+  static die() {
     this.color = consoleColors.BgRed;
     this.step(this.getMsg(arguments));
+    process.exit(-1);
   }
 
-  static die() {
-    this.error(this.getMsg(arguments));
-    process.exit(-1);
+  static error() {
+    console.log(
+      consoleColors.BgRed,
+      this.getMsg(arguments),
+      consoleColors.Reset,
+    );
+    this.done();
   }
 
   static info() {
