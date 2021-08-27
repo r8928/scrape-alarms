@@ -1,3 +1,4 @@
+const puppeteer = require('puppeteer');
 const _ = require('lodash');
 const { env } = require('./env');
 const { appendJson } = require('./jsonfile');
@@ -497,16 +498,32 @@ async function loginAlram(page) {
 /** @param {puppeteer.Page} page */
 async function handle2FA(page) {
   try {
-    console.log(`🚀 > handle2FA`);
     await page.waitForSelector(selectors.twoFactorConfirm);
+    stepMessage(`handle2FA`);
   } catch (error) {
-    console.log(`🚀 > NOOOOO handle2FA`, error);
+    console.log(`🚀 > NOOOOO 2FA`);
+    return;
   }
+
   try {
     await click(page, selectors.twoFactorSkip);
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+    await page.waitForNavigation({ waitUntil: 'networkidle0' });
   } catch (error) {
-    console.log(`🚀 > CANNOT THWART handle2FA`, error);
+    errorDie(`🚀 > COULD NOT THWART 2FA: LAYOUT CHANGED???`);
+  }
+
+  try {
+    await page.waitForSelector(selectors.sap_dropdown);
+  } catch (error) {
+    await page.goto('https://www.alarm.com/web/system/home', {
+      waitUntil: 'networkidle0',
+    });
+  }
+
+  try {
+    await page.waitForSelector(selectors.sap_dropdown);
+  } catch (error) {
+    errorDie(`🚀 > COULD NOT THWART 2FA: NOT LOGGED IN`);
   }
 }
 
