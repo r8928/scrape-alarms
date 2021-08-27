@@ -1,27 +1,21 @@
-// import { Page } from 'puppeteer';
-const puppeteer = require('puppeteer');
-const jsonfile = require('jsonfile');
 const _ = require('lodash');
 const { env } = require('./env');
-
-var G_SAP;
-
-const values = {
-  username: env.username,
-  password: env.password,
-  jsonFileName: new Date().toISOString().split('T')[0].concat('.json'),
-};
+const { appendJson } = require('./jsonfile');
+const { stepMessage, substepMessage, errorMsg, errorDie } = require('./msgs');
+const { getBrowser } = require('./ppt');
 
 const selectors = {
   username: '[id="ctl00_ContentPlaceHolder1_loginform_txtUserName"]',
   password: '[name="txtPassword"]',
   loginSubmit: '[name="ctl00$ContentPlaceHolder1$loginform$signInButton"]',
+  twoFactorConfirm: '.two-factor-intro',
+  twoFactorSkip: '.action-buttons button[aria-live="polite"]',
   sap_dropdown: '.system-select .dropdown-toggle',
   dropdown_saps_list: '.popper-container .content ul li a',
 };
 
 const navigationIds = {
-  Settings: 1155,
+  Settings: 1169,
   Settings_Monitoring: 22,
   Users: 'users',
 };
@@ -30,8 +24,15 @@ async function run() {
   if (![2, 3].includes(process.argv.length)) {
     return errorDie('INVALID NUMBER OF ARGUMENTS');
   }
+  const debug = false;
 
-  const { page } = await getBrowser();
+  const { page } = await getBrowser(debug);
+
+  if (debug) {
+    await openAlarm(page);
+  } else {
+    await loginAlram(page);
+  }
 
   if (process.argv.length === 2) {
     await doAllSaps(page);
@@ -47,6 +48,7 @@ async function run() {
   return process.exit();
 }
 
+/** @param {puppeteer.Page} page */
 async function doAllSaps(page) {
   const sap_count = await getAllSaps(page);
 
@@ -70,6 +72,7 @@ async function doStore({ page, sap_index, sap_name }) {
 |-----------------------------------------------------------------------
 | */
 
+/** @param {puppeteer.Page} page */
 async function getSettings(page) {
   await openNavigationLink(page, navigationIds.Settings);
 
@@ -131,6 +134,7 @@ async function getSettings(page) {
 |-----------------------------------------------------------------------
 | */
 
+/** @param {puppeteer.Page} page */
 async function getUsers(page) {
   await openNavigationLink(page, navigationIds.Users);
 
@@ -252,6 +256,7 @@ async function getUsers(page) {
 |-----------------------------------------------------------------------
 | */
 
+/** @param {puppeteer.Page} page */
 async function getNotifications(page) {
   await openNotificationsPage();
 
@@ -375,6 +380,7 @@ async function getNotifications(page) {
 |-----------------------------------------------------------------------
 | */
 
+/** @param {puppeteer.Page} page */
 async function getAllSaps(page) {
   await openSapDropdown(page);
 
@@ -423,11 +429,12 @@ async function selectSap({ page, sap_index, sap_name }) {
     ? await getSapByName({ page, sap_name })
     : await getSapByIndex({ page, sap_index });
 
-  G_SAP = sap.trim().replace('.', ' ').trim();
-  stepMessage(G_SAP);
+  env.G_SAP = sap.trim().replace('.', ' ').trim();
+  stepMessage(env.G_SAP);
   await page.waitForNavigation();
 }
 
+/** @param {puppeteer.Page} page */
 async function openSapDropdown(page) {
   // OPEN DROPDOWN
   await click(page, selectors.sap_dropdown);
@@ -436,6 +443,7 @@ async function openSapDropdown(page) {
   await page.waitForSelector(selectors.dropdown_saps_list);
 }
 
+/** @param {puppeteer.Page} page */
 async function openNavigationLink(page, module, timeout = 120000) {
   console.log('openNavigationLink -> openNavigationLink', module);
 
@@ -450,20 +458,26 @@ async function openNavigationLink(page, module, timeout = 120000) {
   await page.waitForNavigation({ waitUntil: 'networkidle0', timeout });
 }
 
+/** @param {puppeteer.Page} page */
 async function getIframe(page, frameSrc) {
   const elementHandle = await page.$('[src="' + frameSrc + '"]');
   const frame = await elementHandle.contentFrame();
   return frame;
 }
 
+/** @param {puppeteer.Page} page */
 async function openAlarm(page) {
   stepMessage('openAlarm');
+
+  // await loginAlram(page);
+  await handle2FA();
 
   await page.goto('https://www.alarm.com/web/system/automation/scenes', {
     waitUntil: 'networkidle0',
   });
 }
 
+/** @param {puppeteer.Page} page */
 async function loginAlram(page) {
   stepMessage('loginAlram');
   // await screenshot(page);
@@ -471,72 +485,44 @@ async function loginAlram(page) {
   await page.goto('https://www.alarm.com/login.aspx', {
     waitUntil: 'domcontentloaded',
   });
+
   await page.waitForSelector(selectors.loginSubmit);
-
-  await Promise.all([
-    setValue(page, selectors.username, values.username),
-    setValue(page, selectors.password, values.password),
-    //  screenshot(page),
-
-    click(page, selectors.loginSubmit),
-    page.waitForNavigation({ waitUntil: 'networkidle2' }),
-
-    //  screenshot(page),
-  ]);
+  await setValue(page, selectors.username, env.username);
+  await setValue(page, selectors.password, env.password);
+  await click(page, selectors.loginSubmit);
+  await page.waitForNavigation({ waitUntil: 'networkidle2' });
+  await handle2FA(page);
 }
 
+/** @param {puppeteer.Page} page */
+async function handle2FA(page) {
+  try {
+    console.log(`🚀 > handle2FA`);
+    await page.waitForSelector(selectors.twoFactorConfirm);
+  } catch (error) {
+    console.log(`🚀 > NOOOOO handle2FA`, error);
+  }
+  try {
+    await click(page, selectors.twoFactorSkip);
+    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+  } catch (error) {
+    console.log(`🚀 > CANNOT THWART handle2FA`, error);
+  }
+}
+
+/** @param {puppeteer.Page} page */
 async function getIframe(page, frameSrc) {
   const elementHandle = await page.$('[src="' + frameSrc + '"]');
   const frame = await elementHandle.contentFrame();
   return frame;
 }
 
-/*
-|-----------------------------------------------------------------------
-|
-| PUPPET HELPERS
-|
-|-----------------------------------------------------------------------
-| */
-
-async function getBrowser() {
-  const debug = false;
-
-  if (debug) {
-    const browser = await puppeteer.connect({
-      browserURL: 'http://127.0.0.1:21222',
-      defaultViewport: null,
-    });
-
-    const page = await browser.newPage();
-
-    await openAlarm(page);
-
-    return { browser, page };
-  } else {
-    const browser = await puppeteer.launch({
-      // headless: false,
-      defaultViewport: null,
-      args: ['--start-maximized'],
-    });
-
-    const page = await browser.newPage();
-    await page.setDefaultTimeout(120 * 1000);
-    await page.setViewport({
-      width: 1366,
-      height: 768,
-    });
-
-    await loginAlram(page);
-
-    return { browser, page };
-  }
-}
-
+/** @param {puppeteer.Page} page */
 async function screenshot(page) {
   await page.screenshot({ path: 'example.png' });
 }
 
+/** @param {puppeteer.Page} page */
 async function setValue(page, selector_name, value_name) {
   await page.waitForSelector(selector_name);
 
@@ -547,6 +533,17 @@ async function setValue(page, selector_name, value_name) {
   }, params);
 }
 
+/** @param {puppeteer.Page} page */
+async function type(page, selector_name, value_name) {
+  await page.waitForSelector(selector_name);
+
+  await page.focus(selector_name);
+  await click(page, selector_name);
+  await page.keyboard.type(value_name, { delay: 1 });
+  // await page.type(selector_name, value_name, { delay: 1 });
+}
+
+/** @param {puppeteer.Page} page */
 async function getText(page, parentEl, selector, attr = 'innerText') {
   await page.waitForSelector(selector);
 
@@ -559,84 +556,13 @@ async function getText(page, parentEl, selector, attr = 'innerText') {
   return text.trim();
 }
 
+/** @param {puppeteer.Page} page */
 async function click(page, selector_name) {
   await page.waitForSelector(selector_name);
 
-  const params = { selector_name };
-
-  await page.evaluate(p => {
-    document.querySelector(p.selector_name).click();
-  }, params);
+  const a = await page.$(selector_name);
+  a.click();
 }
-
-function stepMessage(message, color = consoleColors.BgBlue) {
-  console.log();
-  console.log();
-  console.log(color, consoleColors.Bright, message, consoleColors.Reset);
-  console.log();
-  console.log();
-}
-
-function substepMessage(message, color = consoleColors.BgMagenta) {
-  console.log();
-  console.log();
-  console.log(color, consoleColors.Bright, message, consoleColors.Reset);
-}
-
-function errorMsg(message) {
-  stepMessage(message, consoleColors.BgRed);
-}
-
-function errorDie(message) {
-  errorMsg(message);
-  process.exit(-1);
-}
-
-function readJson() {
-  try {
-    return jsonfile.readFileSync(values.jsonFileName);
-  } catch (error) {
-    return {};
-  }
-}
-
-function appendJson(path, value) {
-  let json = readJson();
-
-  _.set(json, [G_SAP, path].join('.'), value);
-
-  // console.log(json);
-
-  return jsonfile.writeFileSync(values.jsonFileName, json);
-}
-
-const consoleColors = {
-  Reset: '\x1b[0m',
-  Bright: '\x1b[1m',
-  Dim: '\x1b[2m',
-  Underscore: '\x1b[4m',
-  Blink: '\x1b[5m',
-  Reverse: '\x1b[7m',
-  Hidden: '\x1b[8m',
-
-  FgBlack: '\x1b[30m',
-  FgRed: '\x1b[31m',
-  FgGreen: '\x1b[32m',
-  FgYellow: '\x1b[33m',
-  FgBlue: '\x1b[34m',
-  FgMagenta: '\x1b[35m',
-  FgCyan: '\x1b[36m',
-  FgWhite: '\x1b[37m',
-
-  BgBlack: '\x1b[40m',
-  BgRed: '\x1b[41m',
-  BgGreen: '\x1b[42m',
-  BgYellow: '\x1b[43m',
-  BgBlue: '\x1b[44m',
-  BgMagenta: '\x1b[45m',
-  BgCyan: '\x1b[46m',
-  BgWhite: '\x1b[47m',
-};
 
 /*
 |-----------------------------------------------------------------------
