@@ -1,24 +1,70 @@
-function stepMessage(message, color = consoleColors.BgBlue) {
-  console.log();
-  console.log();
-  console.log(color, consoleColors.Bright, message, consoleColors.Reset);
-  console.log();
-  console.log();
-}
+class msg {
+  message;
+  color = null;
 
-function substepMessage(message, color = consoleColors.BgMagenta) {
-  console.log();
-  console.log();
-  console.log(color, consoleColors.Bright, message, consoleColors.Reset);
-}
+  static step() {
+    this.color = this.color || consoleColors.BgBlue;
+    this.message = this.message || this.getMsg(arguments);
+    console.log();
+    console.log();
+    console.log(
+      this.color,
+      consoleColors.Bright,
+      this.message,
+      consoleColors.Reset,
+    );
+    console.log();
+    console.log();
+    this.done();
+  }
 
-function errorMsg(message) {
-  stepMessage(message, consoleColors.BgRed);
-}
+  static substep() {
+    this.color = this.color || consoleColors.BgMagenta;
+    this.message = this.message || this.getMsg(arguments);
+    console.log();
+    console.log();
+    console.log(
+      this.color,
+      consoleColors.Bright,
+      this.message,
+      consoleColors.Reset,
+    );
+    this.done();
+  }
 
-function errorDie(message) {
-  errorMsg(message);
-  process.exit(-1);
+  static error() {
+    this.color = consoleColors.BgRed;
+    this.step(this.getMsg(arguments));
+  }
+
+  static die() {
+    this.error(this.getMsg(arguments));
+    process.exit(-1);
+  }
+
+  static info() {
+    console.log(
+      consoleColors.FgYellow,
+      this.getMsg(arguments),
+      consoleColors.Reset,
+    );
+    this.done();
+  }
+
+  static getMsg(arg) {
+    let message = [];
+    for (let index = 0; index < arg.length; index++) {
+      const item = arg[index];
+      message.push(typeof item === 'string' ? item : JSON.stringify(item));
+    }
+    message = message.join(', ');
+    return message;
+  }
+
+  static done() {
+    this.color = null;
+    this.message = null;
+  }
 }
 
 const consoleColors = {
@@ -49,8 +95,4 @@ const consoleColors = {
   BgWhite: '\x1b[47m',
 };
 
-exports.errorMsg = errorMsg;
-exports.errorDie = errorDie;
-exports.consoleColors = consoleColors;
-exports.stepMessage = stepMessage;
-exports.substepMessage = substepMessage;
+exports.msg = msg;
