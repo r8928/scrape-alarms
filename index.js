@@ -2,7 +2,7 @@ const puppeteer = require('puppeteer');
 const _ = require('lodash');
 const { env } = require('./env');
 const { appendJson } = require('./jsonfile');
-const { msg } = require('./msgs');
+const { msg } = require('console-msgs');
 const { getBrowser, getIframe, screenshot, setValue, type, getText, click, goto, } = require('./ppt'); // prettier-ignore
 
 const selectors = {
