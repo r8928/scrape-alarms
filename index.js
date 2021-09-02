@@ -86,22 +86,33 @@ async function doStore({ page, sap_index, sap_name, sap_count }) {
 async function getSettings(page) {
   msg.step('SETTINGS MODULE');
 
-  await openNavigationLink(page, navigationIds.Settings);
-  // await goto(page, navigationIds.SettingsURL);
+  // await openNavigationLink(page, navigationIds.Settings);
+  // try {
+  //   await openNavigationLink(
+  //     page,
+  //     navigationIds.Settings_MonitoringStation,
+  //     5000,
+  //   );
+  //   // await goto(page, navigationIds.Settings_MonitoringStationURL);
+  // } catch (error) {
+  //   screenshot(page);
+  //   msg.error('MONITORING STATION NOT FOUND - PROTECTION 1?');
+  //   return;
+  // }
 
+  /** @var {puppeteer.Frame} frame */
+  let frame;
+  await goto(page, navigationIds.Settings_MonitoringStationURL);
   try {
-    await openNavigationLink(page, navigationIds.Settings_MonitoringStation);
-    // await goto(page, navigationIds.Settings_MonitoringStationURL);
+    frame = await getIframe(
+      page,
+      '/web/Profile/MonitoringStation/MonitoringStation.aspx',
+    );
   } catch (error) {
     screenshot(page);
     msg.error('MONITORING STATION NOT FOUND - PROTECTION 1?');
     return;
   }
-
-  const frame = await getIframe(
-    page,
-    '/web/Profile/MonitoringStation/MonitoringStation.aspx',
-  );
 
   let ContactRows = await getContactRows();
 
@@ -460,11 +471,11 @@ async function openNavigationLink(page, module, timeout = 60000) {
 
   try {
     const selector = navigationLinkSelector(module);
-    await page.waitForSelector(selector);
+    await page.waitForSelector(selector, { timeout });
     await page.click(selector);
   } catch (error) {
     screenshot(page);
-    msg.die('Cannot openNavigationLink ', module);
+    throw new Error('Cannot openNavigationLink ' + module);
   }
 }
 
@@ -477,7 +488,7 @@ async function openAlarm(page) {
   msg.step('openAlarm');
 
   // await loginAlram(page);
-  await handle2FA(page);
+  await goto(page, 'https://www.alarm.com/web/system/home');
 }
 
 /** @param {puppeteer.Page} page */
