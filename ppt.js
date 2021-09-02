@@ -13,32 +13,101 @@ const puppeteer = require('puppeteer');
  * @return {{page:puppeteer.Page,browser:puppeteer.Browser}}
  */
 module.exports.getBrowser = async debug => {
+  /** @var {puppeteer.Page} page */
+  let page;
+
   if (debug) {
     const browser = await puppeteer.connect({
       browserURL: 'http://localhost:21222',
       defaultViewport: null,
     });
 
-    const page = await browser.newPage();
-
-    return { browser, page };
+    page = await browser.newPage();
   } else {
     browser = await puppeteer.launch({
-      // headless: false,
+      headless: false,
       defaultViewport: null,
       args: ['--start-maximized'],
     });
 
-    const page = await browser.newPage();
+    page = await browser.newPage();
     await page.setDefaultTimeout(120 * 1000);
     await page.setViewport({
       width: 1366,
       height: 768,
     });
-
-    return { browser, page };
   }
+
+  await fasterRequests(page);
+  await page.setCacheEnabled(true);
+
+  return { browser, page };
 };
+
+/** @param {puppeteer.Page} page */
+async function fasterRequests(page) {
+  const cache = {};
+
+  await page.setRequestInterception(true);
+  page.on('request', request => {
+    const url = request.url();
+    if (
+      ['png', 'image', 'x-icon', 'other', 'woff', 'font'].includes(
+        request.resourceType(),
+      ) ||
+      [
+        '/ga.js',
+        '/analytics.js',
+        'google-analytics.com',
+        'pixel.mathtag.com',
+        'sentry.io',
+        'facebook.com',
+        'facebook.net',
+        'tvsquared.com',
+        'linkedin.com',
+        'nextdoor.com',
+        'licdn.com',
+        'googleadservices.com',
+        'gstatic.com',
+        'googleapis.com',
+        'bootstrap.min.js?',
+      ].some(r => request.url().includes(r))
+    ) {
+      request.abort();
+    } else if (['js', 'stylesheet'].includes(request.resourceType())) {
+      if (cache[url]) {
+        request.respond(cache[url]);
+        return;
+      }
+      request.continue();
+    } else {
+      request.continue();
+    }
+  });
+
+  page.on('response', async response => {
+    const url = response.url();
+    if (!!cache[url]) {
+      return;
+    }
+
+    if (['js', 'stylesheet'].includes(request.resourceType())) {
+      let buffer;
+      try {
+        buffer = await response.buffer();
+      } catch (error) {
+        // some responses do not contain buffer and do not need to be catched
+        return;
+      }
+
+      cache[url] = {
+        status: response.status(),
+        headers: response.headers(),
+        body: buffer,
+      };
+    }
+  });
+}
 
 /** @param {puppeteer.Page} page */
 module.exports.getIframe = async (page, frameSrc) => {
