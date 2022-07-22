@@ -15,9 +15,10 @@ const puppeteer = require('puppeteer');
 module.exports.getBrowser = async debug => {
   /** @var {puppeteer.Page} page */
   let page;
+  let browser;
 
   if (debug) {
-    const browser = await puppeteer.connect({
+    browser = await puppeteer.connect({
       browserURL: 'http://localhost:21222',
       defaultViewport: null,
     });
@@ -25,7 +26,7 @@ module.exports.getBrowser = async debug => {
     page = await browser.newPage();
   } else {
     browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
       defaultViewport: null,
       args: ['--start-maximized'],
     });
@@ -47,6 +48,7 @@ module.exports.getBrowser = async debug => {
 /** @param {puppeteer.Page} page */
 async function fasterRequests(page) {
   const cache = {};
+  const cacheExtension = ['.js', '.css'];
 
   await page.setRequestInterception(true);
   page.on('request', request => {
@@ -74,12 +76,9 @@ async function fasterRequests(page) {
       ].some(r => request.url().includes(r))
     ) {
       request.abort();
-    } else if (['js', 'stylesheet'].includes(request.resourceType())) {
-      if (cache[url]) {
-        request.respond(cache[url]);
-        return;
-      }
-      request.continue();
+    } else if (cache[url]) {
+      request.respond(cache[url]);
+      return;
     } else {
       request.continue();
     }
@@ -87,24 +86,19 @@ async function fasterRequests(page) {
 
   page.on('response', async response => {
     const url = response.url();
-    if (!!cache[url]) {
-      return;
-    }
-
-    if (['js', 'stylesheet'].includes(request.resourceType())) {
-      let buffer;
+    if (!cache[url] && cacheExtension.some(ext => url.endsWith(ext))) {
       try {
-        buffer = await response.buffer();
+        const buffer = await response.buffer();
+
+        cache[url] = {
+          status: response.status(),
+          headers: response.headers(),
+          body: buffer,
+        };
       } catch (error) {
         // some responses do not contain buffer and do not need to be catched
         return;
       }
-
-      cache[url] = {
-        status: response.status(),
-        headers: response.headers(),
-        body: buffer,
-      };
     }
   });
 }
