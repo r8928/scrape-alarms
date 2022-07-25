@@ -12,7 +12,7 @@
 		"console-msgs": "^1.1.0",
 		"jsonfile": "^6.0.1",
 		"lodash": "^4.17.19",
-		"puppeteer": "^5.5.0"
+		"puppeteer": "^15.5.0"
 	},
 	"devDependencies": {
 		"@types/puppeteer": "^3.0.6"

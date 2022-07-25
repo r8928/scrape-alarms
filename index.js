@@ -12,7 +12,8 @@ const selectors = {
   twoFactorConfirm: '.two-factor-intro',
   twoFactorSkip: 'button[type="cancel"]',
   sap_dropdown: '.system-select .dropdown-toggle',
-  dropdown_saps_list: '.popper-container .content ul li a',
+  dropdown_menu: 'body > .popover-menu.ember-view',
+  dropdown_saps_list: 'div.content > ul > li > div > a',
 };
 
 const navigationIds = {
@@ -109,7 +110,7 @@ async function getSettings(page) {
       '/web/Profile/MonitoringStation/MonitoringStation.aspx',
     );
   } catch (error) {
-    screenshot(page);
+    await screenshot(page);
     msg.error('MONITORING STATION NOT FOUND - PROTECTION 1?');
     return;
   }
@@ -458,11 +459,13 @@ async function selectSap({ page, sap_index, sap_name }) {
 
 /** @param {puppeteer.Page} page */
 async function openSapDropdown(page) {
-  // OPEN DROPDOWN
-  await click(page, selectors.sap_dropdown);
+  if (!(await page.$(selectors.dropdown_menu))) {
+    // OPEN DROPDOWN
+    await click(page, selectors.sap_dropdown);
 
-  // WAIT FOR DROPDOWN UI UPDATE
-  await page.waitForSelector(selectors.dropdown_saps_list);
+    // WAIT FOR DROPDOWN UI UPDATE
+    await page.waitForSelector(selectors.dropdown_saps_list);
+  }
 }
 
 /** @param {puppeteer.Page} page */
@@ -474,7 +477,7 @@ async function openNavigationLink(page, module, timeout = 60000) {
     await page.waitForSelector(selector, { timeout });
     await page.click(selector);
   } catch (error) {
-    screenshot(page);
+    await screenshot(page);
     throw new Error('Cannot openNavigationLink ' + module);
   }
 }
@@ -551,7 +554,7 @@ async function openHome(page) {
 }
 
 async function writeHtmlAndDie(page) {
-  screenshot(page);
+  await screenshot(page);
 
   const html = await page.evaluate(
     'new XMLSerializer().serializeToString(document.doctype) + document.documentElement.outerHTML',
