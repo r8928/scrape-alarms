@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer');
+const { env } = require('./env');
 
 /*
 |-----------------------------------------------------------------------
@@ -26,9 +27,10 @@ module.exports.getBrowser = async debug => {
     page = await browser.newPage();
   } else {
     browser = await puppeteer.launch({
-      headless: true,
+      headless: process.env.HEADLESS ? process.env.HEADLESS == 'true' : true,
       defaultViewport: null,
       args: ['--start-maximized'],
+      executablePath: env.chromePath,
     });
 
     page = await browser.newPage();

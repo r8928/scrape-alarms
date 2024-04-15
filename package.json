@@ -4,7 +4,8 @@
 	"description": "",
 	"main": "./index.js",
 	"scripts": {
-		"start": "node ./index.js"
+		"start": "node ./index.js",
+		"install_without_chrome": "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm i"
 	},
 	"author": "r8928",
 	"license": "ISC",

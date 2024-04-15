@@ -201,13 +201,16 @@ async function getUsers(page) {
 
       let contactRows = await countContactRows();
       if (contactRows.length) {
-        await page.waitForSelector('.sub-description');
+        await page.waitForSelector('.contact-information');
 
         Contacts = await page.evaluate(() => {
           const ad = [];
-          document.querySelectorAll('.sub-description').forEach(element => {
-            ad.push(element.textContent.trim());
-          });
+
+          Array.from(document.querySelectorAll('.description-right')).forEach(
+            element => {
+              ad.push(element.textContent.trim());
+            },
+          );
 
           return ad;
         });
