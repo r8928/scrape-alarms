@@ -204,15 +204,11 @@ async function getUsers(page) {
         await page.waitForSelector('.contact-information');
 
         Contacts = await page.evaluate(() => {
-          const ad = [];
+          return Array.from(document.querySelectorAll('.contact-information'))
 
-          Array.from(document.querySelectorAll('.description-right')).forEach(
-            element => {
-              ad.push(element.textContent.trim());
-            },
-          );
-
-          return ad;
+            .filter(cont => !!cont.querySelector('.svg-sms'))
+            .map(cont => cont.querySelector('.description-right')?.textContent)
+            .filter(text => text);
         });
 
         // for (let index = 0; index < contactRows.length; index++) {
